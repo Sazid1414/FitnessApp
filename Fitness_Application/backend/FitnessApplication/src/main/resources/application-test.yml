@@ -1,0 +1,106 @@
+# =============================================================================
+# FITNESS APPLICATION - TEST ENVIRONMENT (YAML)
+# =============================================================================
+
+spring:
+  profiles:
+    active: test
+  
+  # Test Database (H2 in-memory)
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  
+  # H2 Console disabled for tests
+  h2:
+    console:
+      enabled: false
+  
+  # JPA Configuration for tests
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    format-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+  
+  # Test Mail Configuration (disabled)
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+# Test Server Configuration
+server:
+  port: 0 # Random port for tests
+
+# Test Logging (minimal)
+logging:
+  level:
+    com.fitness_application: DEBUG
+    org.springframework.test: DEBUG
+    org.springframework.boot.test: INFO
+    org.hibernate.SQL: INFO
+    root: WARN
+  pattern:
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n"
+
+# Test JWT settings (very short expiration)
+jwt:
+  expiration: 60000 # 1 minute for tests
+
+# Test AI Service Configuration (mocked)
+ai:
+  gemini:
+    api:
+      key: test-api-key
+      url: http://localhost:8080/mock/gemini
+
+# Test OAuth2 Configuration (mocked)
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+          github:
+            client-id: test-github-client-id
+            client-secret: test-github-client-secret
+
+# Test Swagger Configuration (enabled for API tests)
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+# Test Management Configuration (full access)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# Test-specific configurations
+app:
+  test:
+    cleanup-after-test: true
+    use-mock-external-services: true

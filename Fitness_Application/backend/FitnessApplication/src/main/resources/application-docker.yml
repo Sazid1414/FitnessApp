@@ -1,0 +1,84 @@
+# =============================================================================
+# FITNESS APPLICATION - DOCKER ENVIRONMENT (YAML)
+# =============================================================================
+
+spring:
+  profiles:
+    active: docker
+  
+  # Docker Database (PostgreSQL container)
+  datasource:
+    url: jdbc:postgresql://postgres:5432/fitness_app
+    driver-class-name: org.postgresql.Driver
+    username: ${DATABASE_USERNAME:fitness_user}
+    password: ${DATABASE_PASSWORD:fitness_password}
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 3
+      idle-timeout: 300000
+      connection-timeout: 20000
+  
+  # JPA Configuration for Docker
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    format-sql: false
+
+# Docker Server Configuration
+server:
+  port: 8080
+  address: 0.0.0.0
+
+# Docker Logging
+logging:
+  level:
+    com.fitness_application: INFO
+    org.springframework.security: WARN
+    root: INFO
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n"
+
+# Docker JWT settings
+jwt:
+  expiration: ${JWT_EXPIRATION:86400000}
+
+# Docker CORS Configuration
+cors:
+  allowed:
+    origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+
+# Docker-specific OAuth2 redirect URIs
+app:
+  oauth2:
+    authorized-redirect-uris: ${OAUTH2_REDIRECT_URIS:http://localhost:3000/oauth2/redirect}
+
+# Docker Swagger Configuration
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+# Docker Management Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
