@@ -1,12 +1,16 @@
 package com.fitness_application.dto;
 
-import com.fitness_application.model.User;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import com.fitness_application.domain.enums.ActivityLevel;
+import com.fitness_application.domain.enums.FitnessGoal;
+import com.fitness_application.domain.enums.Gender;
+import com.fitness_application.domain.enums.UserRole;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -17,13 +21,13 @@ public class UserDto {
     private String firstName;
     private String lastName;
     private LocalDate dateOfBirth;
-    private User.Gender gender;
+    private Gender gender;
     private Double height;
     private Double weight;
-    private User.ActivityLevel activityLevel;
-    private User.FitnessGoal fitnessGoal;
+    private ActivityLevel activityLevel;
+    private FitnessGoal fitnessGoal;
     private String profilePictureUrl;
-    private User.Role role;
+    private UserRole role;
     private boolean enabled;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

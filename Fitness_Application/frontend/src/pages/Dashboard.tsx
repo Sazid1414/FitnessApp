@@ -1,15 +1,59 @@
-import React from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { fitnessAPI, FitnessRecommendation, FitnessMetrics } from '../services/fitness';
+
+interface FetchState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+}
 
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
 
+  const [metricsState, setMetricsState] = useState<FetchState<FitnessMetrics>>({ data: null, loading: true, error: null });
+  const [recoState, setRecoState] = useState<FetchState<FitnessRecommendation>>({ data: null, loading: true, error: null });
+
+  const hasProfile = Boolean(
+    user?.height && user?.weight && user?.dateOfBirth && user?.gender && user?.activityLevel && user?.fitnessGoal
+  );
+
+  useEffect(() => {
+    if (!hasProfile) {
+  setMetricsState((s: FetchState<FitnessMetrics>) => ({ ...s, loading: false }));
+  setRecoState((s: FetchState<FitnessRecommendation>) => ({ ...s, loading: false }));
+      return;
+    }
+    // Fetch metrics
+    (async () => {
+      try {
+        setMetricsState({ data: null, loading: true, error: null });
+        const res = await fitnessAPI.getMetrics();
+        setMetricsState({ data: res.data.data, loading: false, error: null });
+      } catch (e: any) {
+        setMetricsState({ data: null, loading: false, error: e.response?.data?.message || 'Failed to load metrics' });
+      }
+    })();
+    // Fetch recommendations
+    (async () => {
+      try {
+        setRecoState({ data: null, loading: true, error: null });
+        const res = await fitnessAPI.getRecommendations();
+        setRecoState({ data: res.data.data, loading: false, error: null });
+      } catch (e: any) {
+        setRecoState({ data: null, loading: false, error: e.response?.data?.message || 'Failed to load recommendations' });
+      }
+    })();
+  }, [hasProfile]);
+
   const stats = [
-    { name: 'Total Workouts', value: '0', change: '+0%', color: 'text-green-600' },
-    { name: 'This Week', value: '0', change: '+0%', color: 'text-blue-600' },
-    { name: 'Calories Burned', value: '0', change: '+0%', color: 'text-purple-600' },
-    { name: 'Active Days', value: '0', change: '+0%', color: 'text-orange-600' },
+    { name: 'BMR', value: metricsState.data ? Math.round(metricsState.data.bmr).toString() : '—', color: 'text-green-600' },
+    { name: 'Daily Calories', value: metricsState.data ? Math.round(metricsState.data.dailyCalories).toString() : '—', color: 'text-blue-600' },
+    { name: 'Target Calories', value: metricsState.data ? Math.round(metricsState.data.targetCalories).toString() : '—', color: 'text-purple-600' },
+    { name: 'BMI', value: metricsState.data ? metricsState.data.bmi.toFixed(1) : '—', color: 'text-orange-600' },
   ];
+
+  const ProfileForm = React.lazy(() => import('../components/ProfileForm'));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,15 +85,13 @@ const Dashboard: React.FC = () => {
                   <p className="text-sm font-medium text-gray-600 truncate">{stat.name}</p>
                   <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                 </div>
-                <div className={`text-sm font-medium ${stat.color}`}>
-                  {stat.change}
-                </div>
+                <div className={`text-sm font-medium ${stat.color}`}></div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Quick Actions */}
+        {/* Fitness Recommendations & Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
@@ -67,38 +109,63 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Today's Summary</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Workouts Completed</span>
-                <span className="font-semibold">0/1</span>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Personalized Recommendation</h3>
+            {!hasProfile && (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600">
+                  Complete your profile (height, weight, DOB, gender, activity level, goal) to see recommendations.
+                </div>
+                <Suspense fallback={<div className="text-sm text-gray-500">Loading form...</div>}>
+                  <ProfileForm onComplete={() => window.location.reload()} />
+                </Suspense>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Calories Burned</span>
-                <span className="font-semibold">0 kcal</span>
+            )}
+            {hasProfile && (
+              <div className="space-y-4">
+                {recoState.loading && <p className="text-gray-500 text-sm">Loading recommendations...</p>}
+                {recoState.error && <p className="text-red-600 text-sm">{recoState.error}</p>}
+                {recoState.data && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">BMI Category</p>
+                        <p className="font-semibold">{recoState.data.bmiCategory}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Water Intake</p>
+                        <p className="font-semibold">{Math.round(recoState.data.dailyWaterIntake)} ml</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-gray-600 mb-1">Macros (grams)</p>
+                        <div className="flex gap-4 text-xs">
+                          <span className="bg-blue-100 px-2 py-1 rounded">Protein: {Math.round(recoState.data.macroSplit.protein || 0)}g</span>
+                          <span className="bg-green-100 px-2 py-1 rounded">Carbs: {Math.round(recoState.data.macroSplit.carbs || 0)}g</span>
+                          <span className="bg-yellow-100 px-2 py-1 rounded">Fat: {Math.round(recoState.data.macroSplit.fat || 0)}g</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 mb-1 text-sm">Workout Suggestions</p>
+                      <ul className="list-disc list-inside text-sm space-y-1">
+                        {recoState.data.workoutRecommendations.slice(0,3).map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Active Time</span>
-                <span className="font-semibold">0 min</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-primary-600 h-2 rounded-full" style={{ width: '0%' }}></div>
-              </div>
-              <p className="text-sm text-gray-500">0% of daily goal completed</p>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
-          <div className="text-center py-8 text-gray-500">
-            <p>No recent activity. Start your fitness journey by adding your first workout!</p>
-            <button className="mt-4 btn-primary">
-              Add Your First Workout
-            </button>
+        {/* Metrics Loading / Errors */}
+        {metricsState.error && (
+          <div className="card bg-red-50 border border-red-200 text-red-700 mb-8">
+            Failed to load metrics: {metricsState.error}
           </div>
-        </div>
+        )}
+        {/* Placeholder for future recent activity component */}
       </main>
     </div>
   );

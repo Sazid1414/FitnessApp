@@ -1,21 +1,28 @@
 package com.fitness_application.controller;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.fitness_application.ai.AIRequest;
 import com.fitness_application.ai.AIResponse;
 import com.fitness_application.ai.AIService;
 import com.fitness_application.dto.ApiResponse;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/ai")
 @RequiredArgsConstructor
 @Tag(name = "AI Assistant", description = "AI-powered fitness and nutrition recommendations")
+@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
 public class AIController {
     
     private final AIService aiService;

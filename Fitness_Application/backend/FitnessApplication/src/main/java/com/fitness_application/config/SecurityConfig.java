@@ -5,6 +5,7 @@ import com.fitness_application.security.OAuth2LoginSuccessHandler;
 import com.fitness_application.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -37,6 +38,12 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id:}")
+    private String googleClientId;
+
+    @Value("${spring.security.oauth2.client.registration.github.client-id:}")
+    private String githubClientId;
     
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -45,8 +52,11 @@ public class SecurityConfig {
     
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
+    @SuppressWarnings("deprecation")
+    DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+    @SuppressWarnings("deprecation")
+    var ignored = authProvider; // retain variable for suppression grouping
+    authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
@@ -58,6 +68,8 @@ public class SecurityConfig {
     
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        boolean oauthConfigured = isOAuthConfigured();
+
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(authz -> authz
@@ -71,17 +83,22 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService)
-                        )
-                        .successHandler(oAuth2LoginSuccessHandler)
-                )
+                .oauth2Login(oauth2 -> {
+                    if (oauthConfigured) {
+                        oauth2.userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                              .successHandler(oAuth2LoginSuccessHandler);
+                    }
+                })
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable())); // For H2 console
         
         return http.build();
+    }
+
+    private boolean isOAuthConfigured() {
+        return googleClientId != null && !googleClientId.isBlank() && !googleClientId.contains("your-google-client-id")
+                || githubClientId != null && !githubClientId.isBlank() && !githubClientId.contains("your-github-client-id");
     }
     
     @Bean

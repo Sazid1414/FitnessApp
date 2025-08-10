@@ -1,7 +1,8 @@
 package com.fitness_application.repository;
 
-import com.fitness_application.model.Workout;
-import com.fitness_application.model.User;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,8 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.fitness_application.model.User;
+import com.fitness_application.model.Workout;
 
 @Repository
 public interface WorkoutRepository extends JpaRepository<Workout, Long> {
@@ -29,4 +30,7 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     
     @Query("SELECT SUM(w.caloriesBurned) FROM Workout w WHERE w.user = :user AND w.completed = true AND w.workoutDate BETWEEN :start AND :end")
     Integer sumCaloriesBurnedByUserBetweenDates(@Param("user") User user, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    
+    // Admin queries
+    long countByCompleted(boolean completed);
 }

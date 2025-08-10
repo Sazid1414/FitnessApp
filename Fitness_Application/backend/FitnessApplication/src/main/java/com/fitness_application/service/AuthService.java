@@ -1,12 +1,5 @@
 package com.fitness_application.service;
 
-import com.fitness_application.dto.*;
-import com.fitness_application.exception.BadRequestException;
-import com.fitness_application.exception.ResourceNotFoundException;
-import com.fitness_application.model.User;
-import com.fitness_application.repository.UserRepository;
-import com.fitness_application.security.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,9 +8,25 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fitness_application.domain.enums.UserRole;
+import com.fitness_application.dto.ApiResponse;
+import com.fitness_application.dto.JwtResponse;
+import com.fitness_application.dto.LoginDto;
+import com.fitness_application.dto.UserDto;
+import com.fitness_application.dto.UserRegistrationDto;
+import com.fitness_application.exception.BadRequestException;
+import com.fitness_application.exception.ResourceNotFoundException;
+import com.fitness_application.model.User;
+import com.fitness_application.repository.UserRepository;
+import com.fitness_application.security.JwtUtil;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class AuthService {
     
     private final UserRepository userRepository;
@@ -27,22 +36,30 @@ public class AuthService {
     private final ModelMapper modelMapper;
     
     public ApiResponse<JwtResponse> register(UserRegistrationDto registrationDto) {
-        if (userRepository.existsByEmail(registrationDto.getEmail())) {
-            throw new BadRequestException("Email is already registered");
+        try {
+            if (registrationDto.getEmail() == null || registrationDto.getPassword() == null) {
+                throw new BadRequestException("Email and password are required");
+            }
+            String email = registrationDto.getEmail().trim().toLowerCase();
+            if (userRepository.existsByEmail(email)) {
+                throw new BadRequestException("Email is already registered");
+            }
+            User user = modelMapper.map(registrationDto, User.class);
+            user.setEmail(email);
+            user.setPassword(passwordEncoder.encode(registrationDto.getPassword()));
+            user.setRole(UserRole.USER);
+            user.setEnabled(true);
+            User savedUser = userRepository.save(user);
+            UserDto userDto = modelMapper.map(savedUser, UserDto.class);
+            String token = jwtUtil.generateToken(savedUser);
+            JwtResponse jwtResponse = new JwtResponse(token, userDto);
+            return ApiResponse.success("User registered successfully", jwtResponse);
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Registration failed", e);
+            throw new BadRequestException("Registration failed");
         }
-        
-        User user = modelMapper.map(registrationDto, User.class);
-        user.setPassword(passwordEncoder.encode(registrationDto.getPassword()));
-        user.setRole(User.Role.USER);
-        user.setEnabled(true);
-        
-        User savedUser = userRepository.save(user);
-        UserDto userDto = modelMapper.map(savedUser, UserDto.class);
-        
-        String token = jwtUtil.generateToken(savedUser);
-        JwtResponse jwtResponse = new JwtResponse(token, userDto);
-        
-        return ApiResponse.success("User registered successfully", jwtResponse);
     }
     
     public ApiResponse<JwtResponse> login(LoginDto loginDto) {
@@ -100,5 +117,21 @@ public class AuthService {
         UserDto userDto = modelMapper.map(updatedUser, UserDto.class);
         
         return ApiResponse.success("Profile updated successfully", userDto);
+    }
+    
+    public ApiResponse<UserDto> createAdminUser(UserRegistrationDto registrationDto) {
+        if (userRepository.existsByEmail(registrationDto.getEmail())) {
+            throw new BadRequestException("Email is already registered");
+        }
+        
+        User user = modelMapper.map(registrationDto, User.class);
+    user.setPassword(passwordEncoder.encode(registrationDto.getPassword()));
+    user.setRole(UserRole.ADMIN);
+        user.setEnabled(true);
+        
+        User savedUser = userRepository.save(user);
+        UserDto userDto = modelMapper.map(savedUser, UserDto.class);
+        
+        return ApiResponse.success("Admin user created successfully", userDto);
     }
 }

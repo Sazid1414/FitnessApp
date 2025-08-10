@@ -1,18 +1,35 @@
 package com.fitness_application.model;
 
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import com.fitness_application.domain.enums.ActivityLevel;
+import com.fitness_application.domain.enums.FitnessGoal;
+import com.fitness_application.domain.enums.Gender;
+import com.fitness_application.domain.enums.UserRole;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "users")
@@ -54,7 +71,7 @@ public class User implements UserDetails {
     private String profilePictureUrl;
     
     @Enumerated(EnumType.STRING)
-    private Role role = Role.USER;
+    private UserRole role = UserRole.USER;
     
     private boolean enabled = true;
     private boolean accountNonExpired = true;
@@ -81,6 +98,11 @@ public class User implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+    
+    @Override
+    public String getPassword() {
+        return password;
     }
     
     @Override
@@ -113,19 +135,76 @@ public class User implements UserDetails {
         updatedAt = LocalDateTime.now();
     }
     
-    public enum Gender {
-        MALE, FEMALE, OTHER
+    // Domain business logic methods (following Clean Architecture)
+    
+    /**
+     * Calculate BMR using Gender-specific formulas from domain enum
+     * Domain logic delegated to Gender enum following SOLID principles
+     */
+    public double calculateBasalMetabolicRate() {
+        if (height == null || weight == null || dateOfBirth == null || gender == null) {
+            throw new IllegalStateException("Cannot calculate BMR without complete biometric data");
+        }
+        
+        int age = getAge();
+        return gender.calculateBMR(weight, height, age);
     }
     
-    public enum ActivityLevel {
-        SEDENTARY, LIGHTLY_ACTIVE, MODERATELY_ACTIVE, VERY_ACTIVE, EXTREMELY_ACTIVE
+    /**
+     * Calculate daily calorie needs based on activity level
+     * Combines domain logic from entity and enum
+     */
+    public double calculateDailyCalorieNeeds() {
+        if (activityLevel == null) {
+            throw new IllegalStateException("Activity level must be set to calculate calorie needs");
+        }
+        return activityLevel.calculateDailyCalories(calculateBasalMetabolicRate());
     }
     
-    public enum FitnessGoal {
-        LOSE_WEIGHT, GAIN_WEIGHT, MAINTAIN_WEIGHT, BUILD_MUSCLE, IMPROVE_ENDURANCE, GENERAL_FITNESS
+    /**
+     * Calculate target calories based on fitness goal
+     * Business logic combining BMR, activity level, and goal adjustments
+     */
+    public double calculateTargetCalories() {
+        if (fitnessGoal == null) {
+            return calculateDailyCalorieNeeds();
+        }
+        return fitnessGoal.adjustCalories(calculateDailyCalorieNeeds());
     }
     
-    public enum Role {
-        USER, ADMIN
+    /**
+     * Check if user has specific permission (delegation to role)
+     * Security domain logic
+     */
+    public boolean hasPermission(String permission) {
+        return role.hasPermission(permission);
+    }
+    
+    /**
+     * Check if user can access resource (delegation to role)
+     * Security domain logic
+     */
+    public boolean canAccessResource(String resourceType, String operation) {
+        return role.canAccessResource(resourceType, operation);
+    }
+    
+    /**
+     * Check if user has complete profile for fitness calculations
+     * Domain business logic
+     */
+    public boolean hasCompleteProfile() {
+        return height != null && weight != null && dateOfBirth != null && 
+               gender != null && activityLevel != null && fitnessGoal != null;
+    }
+    
+    /**
+     * Calculate age from date of birth
+     * Domain utility method
+     */
+    public int getAge() {
+        if (dateOfBirth == null) {
+            throw new IllegalStateException("Date of birth not set");
+        }
+        return LocalDate.now().getYear() - dateOfBirth.getYear();
     }
 }

@@ -65,6 +65,9 @@ export const authAPI = {
   },
 };
 
+// Convenience named export for updateProfile used in forms
+export const updateProfile = authAPI.updateProfile;
+
 // Workout API
 export const workoutAPI = {
   getWorkouts: (page = 0, size = 10): Promise<AxiosResponse<ApiResponse<Workout[]>>> => {

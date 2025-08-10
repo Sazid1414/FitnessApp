@@ -1,6 +1,8 @@
 package com.fitness_application.dto;
 
-import com.fitness_application.model.User;
+import com.fitness_application.domain.enums.Gender;
+import com.fitness_application.domain.enums.ActivityLevel;
+import com.fitness_application.domain.enums.FitnessGoal;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Past;
@@ -32,7 +34,7 @@ public class UserRegistrationDto {
     @Past(message = "Date of birth must be in the past")
     private LocalDate dateOfBirth;
     
-    private User.Gender gender;
+    private Gender gender;
     
     @Positive(message = "Height must be positive")
     private Double height;
@@ -40,6 +42,6 @@ public class UserRegistrationDto {
     @Positive(message = "Weight must be positive")
     private Double weight;
     
-    private User.ActivityLevel activityLevel;
-    private User.FitnessGoal fitnessGoal;
+    private ActivityLevel activityLevel;
+    private FitnessGoal fitnessGoal;
 }
